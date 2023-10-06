@@ -1,0 +1,6 @@
+catboost_info
+dataset.csv
+predict.csv
+model
+scaler
+.idea
