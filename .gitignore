@@ -1,6 +1,6 @@
 catboost_info
-dataset.csv
 predict.csv
+key.json
 model
 scaler
 .idea

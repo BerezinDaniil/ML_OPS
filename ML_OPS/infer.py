@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 from ML_OPS.NN_model import my_model
 
-path = "../dataset.csv"
+path = "../data/dataset.csv"
 full_data = pd.read_csv(path)
 X = full_data.drop(columns=["round_winner"])
 y = full_data["round_winner"]
