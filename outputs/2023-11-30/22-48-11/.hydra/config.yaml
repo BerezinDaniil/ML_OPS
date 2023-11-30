@@ -1,0 +1,12 @@
+train:
+  train_size: 0.85
+  dataset: train.csv
+  target: round_winner
+  batch_size: 1024
+  epochs: 20
+  lr: 0.003
+  random_state: 42
+test:
+  dataset: test.csv
+  target: round_winner
+  batch_size: 1024

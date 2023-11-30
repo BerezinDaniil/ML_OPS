@@ -1,20 +1,31 @@
+import hydra
 import numpy as np
 import pandas as pd
 import torch
 import torch.optim as optim
+from dvc.api import DVCFileSystem
 from NN_model import CustomDataset, my_model
+from omegaconf import DictConfig
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torchmetrics.classification import F1Score
 
 
-def train(BATCH_SIZE=1024, LR=3e-3, NUM_EPOCHS=40):
-    path = "data/dataset.csv"
-    full_data = pd.read_csv(path)
-    X = full_data.drop(columns=["round_winner"])
-    y = full_data["round_winner"]
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def train(cfg: DictConfig):
+    BATCH_SIZE = cfg.train.batch_size
+    NUM_EPOCHS = cfg.train.epochs
+    LR = cfg.train.lr
+    TRAIN_SIZE = cfg.train.train_size
+
+    fs = DVCFileSystem()
+    fs.get_file(f"data/{cfg.train.dataset}", f"data/{cfg.train.dataset}")
+
+    full_data = pd.read_csv(f"data/{cfg.train.dataset}")
+    X = full_data.drop(columns=cfg.train.target)
+    y = full_data[cfg.train.target]
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, random_state=42, train_size=0.85, stratify=y
+        X, y, random_state=42, train_size=TRAIN_SIZE, stratify=y
     )
     X_train, y_train = np.array(X_train, dtype=np.float32), y_train.values
     X_test, y_test = np.array(X_test, dtype=np.float32), y_test.values
@@ -108,11 +119,13 @@ def train(BATCH_SIZE=1024, LR=3e-3, NUM_EPOCHS=40):
         valid_f1 = valid_f1 / len(valid_loader)
 
         print(
-            "Epoch: %d | Train Loss: %.3f | Train Acc: %.3f | "
-            "Valid Loss: %.3f | Valid Acc: %.3f"
-            % (epoch + 1, train_loss, train_acc, valid_loss, valid_acc)
+            "Epoch: %d | Train Loss: %.3f | Train Acc: %.3f | Train F1: %.3f"
+            % (epoch + 1, train_loss, train_acc, train_f1)
         )
-        print(train_f1, valid_f1)
+        print(
+            "Epoch: %d |Valid Loss: %.3f | Valid Acc: %.3f | Valid F1: %.3f"
+            % (epoch + 1, valid_loss, valid_acc, valid_f1)
+        )
 
         train_losses.append(train_loss)
         train_accs.append(train_acc)
@@ -129,5 +142,5 @@ def train(BATCH_SIZE=1024, LR=3e-3, NUM_EPOCHS=40):
     print("Finished Training")
 
 
-# if __name__ == 'main':
-train()
+if __name__ == "__main__":
+    train()

@@ -56,8 +56,9 @@ class my_model(nn.Module):
         return F.softmax(x, dim=1)
 
     def save(self):
-        state = {"model_state_dict": self.state_dict()}
-        torch.save(state, "models/Model.pth")
+        torch.onnx.export(
+            self, torch.zeros(1, self.num_features), f="models/model.onnx"
+        )
         print("Model saved.")
 
     def load(self, path):
