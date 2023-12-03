@@ -12,5 +12,5 @@
 `poetry run python3 ML_OPS/train.py`
 # test
 `poetry run python3 ML_OPS/infer.py`
-#Запуск сервера
+# Запуск сервера
 `poetry run python3 ML_OPS/run_server.py`
