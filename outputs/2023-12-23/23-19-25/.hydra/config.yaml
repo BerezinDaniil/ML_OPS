@@ -1,0 +1,26 @@
+data:
+  name: data/train.csv
+  target: round_winner
+  val_size: 0.15
+  random_state: 42
+model:
+  name: my_model
+  path: models/model.onnx
+  input_dim: 96
+  hidden_1: 256
+  hidden_2: 256
+  hidden_3: 128
+  hidden_4: 64
+  output_dim: 2
+  lr: 0.003
+  f1_task: binary
+training:
+  batch_size: 1024
+  epochs: 20
+  num_workers: 2
+  precision: 16-mixed
+  accum_grad_batches: 1
+  val_check_interval: 10
+mlflow:
+  uri: http://localhost:8080/
+  experiment_name: Default

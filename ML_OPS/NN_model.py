@@ -1,38 +1,39 @@
+from typing import Any
+
+import lightning.pytorch as pl
 import torch
+import torchmetrics
+from omegaconf import DictConfig
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import Dataset
+from torch.optim import Adam
 
 
-class CustomDataset(Dataset):
-    def __init__(self, X_data, y_data):
-        self.X_data = X_data
-        self.y_data = y_data
+class my_model(pl.LightningModule):
+    def __init__(self, cfg: DictConfig):
+        super().__init__()
+        self.save_hyperparameters()
+        self.cfg = cfg
 
-    def __getitem__(self, index):
-        return self.X_data[index], self.y_data[index]
-
-    def __len__(self):
-        return len(self.X_data)
-
-
-class my_model(nn.Module):
-    def __init__(self, features, num_classes):
-        super(my_model, self).__init__()
-        self.linear_1 = nn.Linear(features, 256)
-        self.linear_2 = nn.Linear(256, 256)
-        self.linear_3 = nn.Linear(256, 128)
-        self.linear_4 = nn.Linear(128, 64)
-        self.linear_5 = nn.Linear(64, num_classes)
+        self.linear_1 = nn.Linear(cfg.model.input_dim, cfg.model.hidden_1)
+        self.linear_2 = nn.Linear(cfg.model.hidden_1, cfg.model.hidden_2)
+        self.linear_3 = nn.Linear(cfg.model.hidden_2, cfg.model.hidden_3)
+        self.linear_4 = nn.Linear(cfg.model.hidden_3, cfg.model.hidden_4)
+        self.linear_5 = nn.Linear(cfg.model.hidden_4, cfg.model.output_dim)
         self.act_1 = nn.ReLU()
         self.act_2 = nn.ReLU()
         self.act_3 = nn.ReLU()
         self.act_4 = nn.ReLU()
         self.act_5 = nn.ReLU()
-        self.batchnorm_1 = nn.BatchNorm1d(256)
-        self.batchnorm_2 = nn.BatchNorm1d(256)
-        self.batchnorm_3 = nn.BatchNorm1d(128)
-        self.batchnorm_4 = nn.BatchNorm1d(64)
+        self.batchnorm_1 = nn.BatchNorm1d(cfg.model.hidden_1)
+        self.batchnorm_2 = nn.BatchNorm1d(cfg.model.hidden_2)
+        self.batchnorm_3 = nn.BatchNorm1d(cfg.model.hidden_3)
+        self.batchnorm_4 = nn.BatchNorm1d(cfg.model.hidden_4)
+
+        self.loss_fn = torch.nn.CrossEntropyLoss()
+        self.f1_fn = torchmetrics.classification.F1Score(
+            task=cfg.model.f1_task, num_classes=cfg.model.output_dim
+        )
 
     def forward(self, x):
         x = self.linear_1(x)
@@ -55,14 +56,35 @@ class my_model(nn.Module):
         x = self.act_5(x)
         return F.softmax(x, dim=1)
 
-    def save(self):
-        torch.onnx.export(
-            self, torch.zeros(1, self.num_features), f="models/model.onnx"
-        )
-        print("Model saved.")
+    def configure_optimizers(self) -> Any:
+        return Adam(self.parameters(), lr=self.cfg.model.lr)
 
-    def load(self, path):
-        state = torch.load(path)
-        model_state_dict = state["model_state_dict"]
-        self.load_state_dict(model_state_dict)
-        print("Model loaded.")
+    def training_step(self, batch: Any, batch_idx: int, dataloader_idx=0):
+        inputs, labels = batch
+        outputs = self(inputs)
+        loss = self.loss_fn(outputs, labels)
+        predicted = torch.argmax(outputs, dim=1)
+        acc = torch.sum(labels == predicted).item() / (len(predicted) * 1.0)
+        f1 = self.f1_fn(predicted, labels).item()
+        self.log_dict(
+            {"train_loss": loss, "train_acc": acc, "train_f1": f1},
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        return loss
+
+    def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0):
+        inputs, labels = batch
+        outputs: torch.Tensor = self(inputs)
+        val_loss = self.loss_fn(outputs, labels)
+        pred = torch.argmax(outputs, dim=1)
+        val_acc = torch.sum(labels == pred).item() / (len(pred) * 1.0)
+        val_f1 = self.f1_fn(pred, labels).item()
+        self.log_dict(
+            {"val_loss": val_loss, "val_acc": val_acc, "val_f1": val_f1},
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        return val_loss

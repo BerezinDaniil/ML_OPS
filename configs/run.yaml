@@ -1,0 +1,7 @@
+model:
+  path: models/model.onnx
+  output_dim: 2
+
+server:
+  host: 0.0.0.0
+  port: 5000
